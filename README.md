@@ -31,16 +31,8 @@ dotnet restore && dotnet tool restore
 
 docker compose up -d                      # start local Postgres (empty; EF creates the schema)
 dotnet run --project source/Sample.Api    # serves /health, /api/widgets, /openapi/v1.json
-                                           #   (in Development, auto-applies EF migrations + seeds)
+                                          #   (in Development, auto-applies EF migrations + seeds)
 ```
-
-If you're using the React client, run it separately:
-
-```bash
-cd source/Sample.Api/ClientApp && npm install && npm run dev
-```
-
-This serves the SPA at `http://localhost:5173`, proxying `/api` and related paths to the API.
 
 ### Build & test
 
@@ -48,6 +40,46 @@ This serves the SPA at `http://localhost:5173`, proxying `/api` and related path
 dotnet build -c Release
 dotnet test  -c Release
 ```
+
+## Run (backend + frontend)
+
+### Dev mode — hot reload, two terminals
+
+Vite serves the SPA and proxies API calls to the backend, so the browser sees a single origin.
+
+```bash
+# once: trust the local HTTPS cert
+dotnet dev-certs https --trust
+```
+
+**Terminal 1 — backend** (https://localhost:7443, http://localhost:5080):
+```bash
+dotnet run --project source/Sample.Api --launch-profile https
+#  → /health, /api/widgets, /openapi/v1.json
+```
+
+**Terminal 2 — frontend** (http://localhost:5173):
+```bash
+cd source/Sample.Api/ClientApp
+npm install        # first time only
+npm run dev
+```
+
+Open **http://localhost:5173** → the **Widgets** page creates/lists widgets through the API.
+Vite proxies `/api`, `/openapi`, `/health` to the backend (see `vite.config.ts`; override
+the target with `VITE_API_PROXY`).
+
+### Single process — prod-like (one port, no Vite)
+
+`dotnet publish` builds the React app and the API serves it from `wwwroot`:
+
+```bash
+dotnet publish source/Sample.Api -c Release -o ./publish   # runs npm build → wwwroot
+dotnet ./publish/Sample.Api.dll                            # SPA + API on one port
+```
+
+> **API only** (`--client-framework none`): no ClientApp — just run
+> `dotnet run --project source/Sample.Api`; `/` redirects to `/openapi/v1.json`.
 
 ## Project layout
 
@@ -66,6 +98,7 @@ dotnet test  -c Release
 | `.github/workflows/` | CI (build/test/coverage), PR title lint, deploy pipeline |
 | `.template.config/` | `dotnet new` template metadata |
 | `.claude/skills/` | Reusable Claude Code workflows |
+| `docs/` | Reference docs (`authentication.md`, `database.md`) + artifacts (`prds/`, `plans/`, `adrs/`, `inputs/`) |
 
 ## Database migrations
 
@@ -133,4 +166,4 @@ dotnet new ai-service -n PaymentsApi --client-framework none  # Web API only
 ## More documentation
 
 See [`CLAUDE.md`](CLAUDE.md) for detailed architecture notes and conventions, and
-[`docs/`](docs/) for design specs.
+[`docs/`](docs/) for design specs and per-issue plans/PRDs.
