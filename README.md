@@ -1,39 +1,42 @@
-# AITemplate
+# dotnet-template
 
-A **Clean-Architecture .NET service** template, packaged as a `dotnet new` template, with a
-React SPA, GitHub Actions CI, and bundled Claude Code skills.
+A **Clean-Architecture .NET service** template, packaged as a `dotnet new` template. It ships
+vertical-slice CQRS over a lightweight in-process mediator (no MediatR), JWT auth with
+role-based access control, EF Core + PostgreSQL persistence, an optional React + Vite SPA,
+OpenTelemetry observability, health checks, and a GitHub Actions CI/CD pipeline.
 
-Vertical-slice CQRS over a lightweight in-process mediator (no MediatR), an optional React +
-Vite frontend, and a Widgets sample. Clone it directly, or install it as a `dotnet new`
-template and scaffold renamed copies.
+## Features
 
-## What's inside
+- **Clean Architecture** — Domain / Application / Infrastructure / Api projects, one per layer.
+- **CQRS** via a lightweight in-process mediator (`Sample.Application/Messaging`) — no MediatR.
+- **Auth** — JWT access + refresh tokens, transported as `httpOnly` cookies only, RBAC via
+  ASP.NET Core Identity. See [`docs/authentication.md`](docs/authentication.md).
+- **Persistence** — EF Core + PostgreSQL (`Npgsql`); schema owned by EF Core migrations.
+- **Optional React + Vite SPA** — `source/Sample.Api/ClientApp`, toggled via template parameter.
+- **Observability** — OpenTelemetry traces + metrics over OTLP; split liveness/readiness health
+  checks (`/health/live`, `/health/ready`).
+- **CI/CD** — GitHub Actions build/test/coverage on every push/PR, GitVersion-based versioning,
+  and a deploy pipeline skeleton (build → migrate → deploy).
 
-- **Layout** — `source/` + `tests/`, `net10.0`, `Directory.Build.props`, `GitVersion.yml`,
-  `.config/dotnet-tools.json`, `.gitattributes`.
-- **Clean Architecture** — `Sample.Domain` / `Sample.Application` (lightweight mediator +
-  vertical slices) / `Sample.Infrastructure` / `Sample.Api` (minimal APIs serving `/health`,
-  `/api/widgets`, OpenAPI).
-- **React SPA** — `source/Sample.Api/ClientApp`, Vite + React 19, served by the API. Optional
-  (drop it with `--client-framework none`).
-- **Database** — PostgreSQL via EF Core; schema owned by EF Core migrations, `docker-compose` for
-  local Postgres. See [docs/database.md](docs/database.md).
-- **Auth** — JWT in `httpOnly` cookies (access + rotated refresh), ASP.NET Core Identity user
-  store, role-based (RBAC). `/api/auth/*` endpoints + `/api/profile/me`; `ICurrentUser` port. See
-  [docs/authentication.md](docs/authentication.md) and [docs/database.md](docs/database.md#authentication--authorization).
-- **Tests** — `tests/`, xUnit + AwesomeAssertions, unit + integration coverage (incl. 401/403).
-- **CI** (`.github/workflows/ci.yaml`) — GitVersion, restore, build, test + coverage.
-- **PR lint** (`.github/workflows/pr-lint.yml`) — Conventional-Commit PR-title check.
-- **Deploy** (`.github/workflows/deploy.yaml`) — build→migrate (`dotnet ef database update`)→roll out.
-- **Dockerfile** — multi-stage, non-root (Node included for the SPA build).
-- **Claude Code** — `CLAUDE.md` + skills in `.claude/skills/` (`dotnet-ci`, `add-dotnet-project`).
+## Prerequisites
 
-> Requires a **net10 SDK** (`global.json` pins SDK 10, prerelease allowed).
+- [.NET SDK 10](https://dotnet.microsoft.com/) (pinned by `global.json`, prerelease allowed)
+- [Docker](https://www.docker.com/) (for local PostgreSQL via `docker-compose.yml`)
+- [Node.js](https://nodejs.org/) (only if using the React client)
 
-## Build & test
+## Getting started
 
 ```bash
 dotnet restore && dotnet tool restore
+
+docker compose up -d                      # start local Postgres (empty; EF creates the schema)
+dotnet run --project source/Sample.Api    # serves /health, /api/widgets, /openapi/v1.json
+                                          #   (in Development, auto-applies EF migrations + seeds)
+```
+
+### Build & test
+
+```bash
 dotnet build -c Release
 dotnet test  -c Release
 ```
@@ -49,7 +52,7 @@ Vite serves the SPA and proxies API calls to the backend, so the browser sees a 
 dotnet dev-certs https --trust
 ```
 
-**Terminal 1 — backend** (https://localhost:7443):
+**Terminal 1 — backend** (https://localhost:7443, http://localhost:5080):
 ```bash
 dotnet run --project source/Sample.Api --launch-profile https
 #  → /health, /api/widgets, /openapi/v1.json
@@ -78,52 +81,89 @@ dotnet ./publish/Sample.Api.dll                            # SPA + API on one po
 > **API only** (`--client-framework none`): no ClientApp — just run
 > `dotnet run --project source/Sample.Api`; `/` redirects to `/openapi/v1.json`.
 
-## Database & auth
+## Project layout
 
-PostgreSQL via EF Core. The schema (Widget sample **+ ASP.NET Core Identity** tables) is owned by
-**EF Core migrations**. In Development the API auto-applies migrations and seeds roles on startup.
+| Path | Purpose |
+|------|---------|
+| `source/<Name>/` | Application & library projects: Domain / Application / Infrastructure / Api |
+| `source/Sample.Api/ClientApp/` | React + Vite SPA (excluded when `--client-framework none`) |
+| `tests/<Name>.Tests/` | Test projects (xUnit + AwesomeAssertions) |
+| `Sample.sln` | Solution file |
+| `Directory.Build.props` | Shared MSBuild settings |
+| `global.json` | Pins .NET SDK 10 (prerelease) |
+| `GitVersion.yml` | Versioning config (GitVersion 6, GitHubFlow) |
+| `.config/dotnet-tools.json` | Local dotnet tool manifest |
+| `docker-compose.yml` | Local dev PostgreSQL |
+| `Dockerfile` | Multi-stage container build |
+| `.github/workflows/` | CI (build/test/coverage), PR title lint, deploy pipeline |
+| `.template.config/` | `dotnet new` template metadata |
+| `.claude/skills/` | Reusable Claude Code workflows |
+| `docs/` | Reference docs (`authentication.md`, `database.md`) + artifacts (`prds/`, `plans/`, `adrs/`, `inputs/`) |
+
+## Database migrations
+
+Schema is owned by EF Core migrations (`source/Sample.Infrastructure/Migrations`).
 
 ```bash
-docker compose up -d                       # local Postgres (empty; EF creates the schema)
-dotnet run --project source/Sample.Api     # Development → auto-migrates + seeds admin@localhost
+# add a migration after changing entities/DbContext
+dotnet ef migrations add Describe_change \
+  --project source/Sample.Infrastructure --startup-project source/Sample.Api
 
-# add a migration after a model change:
-dotnet ef migrations add Describe_change --project source/Sample.Infrastructure --startup-project source/Sample.Api
-dotnet ef database update                 --project source/Sample.Infrastructure --startup-project source/Sample.Api
+# apply pending migrations manually (Development does this automatically on startup)
+export AppDb__ConnectionString="Host=localhost;Port=5432;Database=sample;Username=sample;Password=sample"
+dotnet ef database update \
+  --project source/Sample.Infrastructure --startup-project source/Sample.Api
 ```
 
-Auth is **JWT in `httpOnly` cookies**, **role-based**. ASP.NET Core Identity is the user store
-(password hashing, roles). Register, log in (sets `access_token` + `refresh_token` cookies into a
-jar), then send the jar — the browser does this automatically; curl uses `-b`/`-c`:
+In production, migrations run as a deliberate deploy step (see `.github/workflows/deploy.yaml`),
+never on startup.
+
+## Authentication
+
+JWT access (15 min) and refresh (7-day) tokens, both transported as `httpOnly`, `Secure`,
+`SameSite=Strict` cookies — never exposed to JavaScript. See
+[`docs/authentication.md`](docs/authentication.md) for the full design.
 
 ```bash
-curl -X POST "http://localhost:5080/api/auth/register" \
-  -H "Content-Type: application/json" -d '{"email":"admin@localhost","password":"Admin123!$"}'
-curl -c cookies.txt -X POST "http://localhost:5080/api/auth/login" \
-  -H "Content-Type: application/json" -d '{"email":"admin@localhost","password":"Admin123!$"}'
-curl -b cookies.txt http://localhost:5080/api/widgets   # 200; POST needs the admin role
+curl -X POST "http://localhost:5080/api/auth/register" -H "Content-Type: application/json" \
+  -d '{"email":"me@x.com","password":"Passw0rd!$"}'
+
+curl -c cookies.txt -X POST "http://localhost:5080/api/auth/login" -H "Content-Type: application/json" \
+  -d '{"email":"me@x.com","password":"Passw0rd!$"}'
+
+curl -b cookies.txt http://localhost:5080/api/widgets      # 200; POST /api/widgets needs "admin" role
+curl -b cookies.txt http://localhost:5080/api/profile/me   # 200; current user + roles
+curl -b cookies.txt -c cookies.txt -X POST "http://localhost:5080/api/auth/refresh"
 ```
 
-Full guide — migrations, auth, CI/CD, switching provider: **[docs/database.md](docs/database.md)**.
+## Observability
 
-## Use it as a `dotnet new` template
+OpenTelemetry (traces + metrics) is wired up in `Program.cs` and exported over OTLP — point
+`OTEL_EXPORTER_OTLP_*` env vars at a collector per environment. Health checks:
+
+- `/health/live` — liveness, no dependencies
+- `/health/ready` — readiness, checks the database
+- `/health` — liveness alias
+
+## Using this as a `dotnet new` template
 
 ```bash
 dotnet new install .
+
 dotnet new ai-service -n PaymentsApi                          # React SPA (default)
 dotnet new ai-service -n PaymentsApi --client-framework none  # Web API only
 ```
 
-`Sample` → your project name.
+`Sample` is renamed to your chosen project name throughout.
 
-## Deploy
+## CI/CD
 
-A skeleton `deploy.yaml` (manual `workflow_dispatch`) builds + pushes the image to GHCR, applies EF
-Core migrations (`dotnet ef database update`, connection from the `DB_CONNECTION_STRING` secret),
-then hits a placeholder roll-out job — wire in your target (ECS, k8s, App Runner, Cloud Run).
-Nothing deploys on push/PR; CI stays light. See **[docs/database.md](docs/database.md)** for the
-migrate-then-roll-out flow.
+- **`ci.yaml`** — on push/PR to `main`: GitVersion, restore, build, test + coverage.
+- **`pr-lint.yml`** — validates PR titles follow Conventional Commits.
+- **`deploy.yaml`** — manual (`workflow_dispatch`) pipeline: build & push a GitVersion-tagged
+  image to GHCR, run `dotnet ef database update`, then deploy (placeholder — fill in your target).
 
-## Conventions
+## More documentation
 
-See [CLAUDE.md](CLAUDE.md) for the full directory map and house rules.
+See [`CLAUDE.md`](CLAUDE.md) for detailed architecture notes and conventions, and
+[`docs/`](docs/) for design specs and per-issue plans/PRDs.
