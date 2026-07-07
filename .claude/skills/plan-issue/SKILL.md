@@ -99,6 +99,20 @@ Record **Claude's own observations** — reuse opportunities, hidden coupling, a
 
 ---
 
+## Step 4b: Reconcile plan intent against the live tree
+
+Before writing anything down, re-verify anything you're about to state as fact against the actual working tree — the input file and issue can go stale, the tree is source of truth. Specifically:
+
+- **Package versions**: read the relevant `.csproj` / `package.json`. If the issue or input file says "bump from X to Y", confirm X is still the current version. Don't parrot stale numbers.
+- **"New" files**: for each file the plan is about to mark as new, `git ls-files` / Glob to confirm it doesn't already exist. If it does, flip to "modify" and read its current contents.
+- **Entity fields**: for each field the plan proposes adding to a domain entity or EF configuration, read the current entity class first — if it's already there, note that and drop the change.
+- **Auth/cookie invariants**: if the plan touches auth, cross-check [docs/authentication.md](docs/authentication.md) — refresh TTL is fixed 7 days (not reset on rotation), cookies are `httpOnly` + `SameSite=Strict`, refresh cookie is `Path=/api/auth/refresh`. Flag any proposed change that would violate these.
+- **Template parameterization**: if the plan touches code inside `#if (UseApiOnly)` / `<!--#if-->` regions, note the parameterization must be preserved.
+
+If reconciliation surfaces a material mismatch (plan assumes stale reality), update the plan to match the tree and call it out under a **"Reconciled with tree"** bullet in the plan's Goal or Notes section so reviewers see it.
+
+---
+
 ## Step 5: Resolve ambiguities before writing
 
 If the plan requires a judgement call the issue doesn't resolve (naming, layer boundary, migration strategy, breaking-change tolerance), use `AskUserQuestion` with 2–4 concrete options. Do not write the plan with open questions in it.
@@ -138,6 +152,16 @@ One sentence: what changes and why.
 
 <Code snippets showing key signatures/contracts only — not full implementation.>
 
+#### Pattern to mimic
+For each new file or non-trivial method, cite a real sibling in the codebase and include a **verbatim snippet** (5–15 lines) as the template the implementer should mirror. This grounds the plan in real code, not remembered code.
+
+```csharp
+// From: source/Sample.Application/Widgets/Commands/CreateWidgetHandler.cs (lines N–M)
+<pasted snippet — do NOT paraphrase>
+```
+
+If no analogous pattern exists in the tree, say so explicitly: `No existing analogue — new pattern being introduced.` (Reviewers should scrutinise these more heavily.)
+
 ## Key Files
 - `source/…/…` — <why touched>
 - `tests/…/…` — <new/updated tests>
@@ -162,6 +186,8 @@ One sentence: what changes and why.
 - [ ] Commands and pass criteria are concrete
 - [ ] Migration step included if entities changed
 - [ ] Template parameterization considered
+- [ ] Reconciled against the live tree (no stale package versions, no phantom "new" files, no already-existing fields proposed)
+- [ ] Every non-trivial change cites a verbatim "Pattern to mimic" snippet from the codebase, or explicitly flags "no existing analogue"
 
 ## Additional Ideas (Review Required)
 
@@ -220,4 +246,6 @@ Repeat until approved/merged. Do not start implementation until the user explici
 - Migration step included iff entities changed.
 - PR title follows Conventional Commits.
 - Additional Ideas section present, with Type A vs Type B clearly labelled.
+- Reconciliation done: no stale versions, no phantom "new" files, no already-existing fields proposed.
+- Every non-trivial change has a "Pattern to mimic" snippet (or an explicit "no existing analogue" flag).
 - No implementation done.
