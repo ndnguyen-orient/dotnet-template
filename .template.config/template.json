@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "AITemplate",
+  "classifications": ["Common", "Service", "Api", "React", "SPA", "Web"],
+  "identity": "AITemplate.Service",
+  "name": "Empty .NET service template (with Claude skills)",
+  "shortName": "ai-service",
+  "tags": {
+    "language": "csharp",
+    "type": "project"
+  },
+  "sourceName": "Sample",
+  "preferNameDirectory": true,
+  "symbols": {
+    "ClientFramework": {
+      "type": "parameter",
+      "datatype": "choice",
+      "description": "Frontend to include: a React SPA, or API only (no client).",
+      "defaultValue": "react",
+      "choices": [
+        {
+          "choice": "react",
+          "description": "React SPA (Vite) served by the API."
+        },
+        {
+          "choice": "none",
+          "description": "Web API only, no frontend."
+        }
+      ]
+    },
+    "UseReact": {
+      "type": "computed",
+      "value": "(ClientFramework == \"react\")"
+    },
+    "UseApiOnly": {
+      "type": "computed",
+      "value": "(ClientFramework == \"none\")"
+    }
+  },
+  "sources": [
+    {
+      "modifiers": [
+        {
+          "exclude": [
+            ".vs/**",
+            ".idea/**",
+            "output/**",
+            "**/bin/**",
+            "**/obj/**",
+            "**/ClientApp/node_modules/**",
+            "**/ClientApp/build/**",
+            "**/ClientApp/dist/**"
+          ]
+        },
+        {
+          "condition": "(UseApiOnly)",
+          "exclude": [
+            "source/Sample.Api/ClientApp/**"
+          ]
+        }
+      ]
+    }
+  ]
+}
