@@ -38,6 +38,26 @@ If the issue is missing acceptance criteria or is too vague to plan, stop and as
 
 ---
 
+## Step 1b: Check for a local input file
+
+Look for `docs/inputs/<issue-number>-*.md`. If exactly one matches, parse it for:
+
+- **Design / Reference Links** — treat as authoritative for UI/UX shape.
+- **Brainstorming** — treat as hints for technical approach.
+- **Constraints & Non-goals** — treat as hard constraints (deadlines, compat) unless the issue contradicts them.
+
+If multiple match, ask the user which to use. If none, proceed with issue context only — the input file is optional.
+
+**Conflict order (highest wins)** when the issue, input file, and repo docs disagree:
+1. Issue acceptance criteria + decisions in issue comments
+2. Input file's design/reference links (for UI/UX shape)
+3. Input file's brainstorming notes (for technical approach)
+4. Existing repo patterns
+
+If a conflict can't be resolved by this order, stop and ask via `AskUserQuestion` — don't guess.
+
+---
+
 ## Step 2: Read repo context
 
 - Read [CLAUDE.md](CLAUDE.md) — this repo's conventions are load-bearing (Clean Architecture layout under `source/`, EF migrations, JWT-cookie auth, `dotnet new` template parameterization, Conventional Commits PR titles).
