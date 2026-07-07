@@ -10,6 +10,11 @@ output/
 .idea/
 *.sln.iml
 
+# Visual Studio per-user state
+.vs/
+*.suo
+*.user
+
 # DotSettings
 *.DotSettings.user
 

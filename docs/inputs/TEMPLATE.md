@@ -1,8 +1,10 @@
 # Input: <feature name>
 
-> Optional extra context for `/plan-issue`. The GitHub issue is still the source of truth for acceptance criteria; this file adds design links, brainstorming, and constraints the issue doesn't capture.
+> **Required input** for `/plan-issue`. The GitHub issue is still the source of truth for acceptance criteria; this file adds design links, brainstorming, and constraints the issue doesn't capture.
 >
 > Filename convention: `<issue-number>-<short-slug>.md` (e.g. `1234-widget-search.md`) so `/plan-issue <issue-number>` can auto-discover it.
+>
+> **Required sections** (skill will refuse to plan without them): §1 Issue, §2 Design / Reference Links, §4 Constraints & Non-goals. §3 Brainstorming may be left empty.
 
 ## 1. Issue
 - Primary: `#<NNNN>` — <URL>

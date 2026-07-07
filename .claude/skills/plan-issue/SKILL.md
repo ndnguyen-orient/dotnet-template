@@ -38,15 +38,19 @@ If the issue is missing acceptance criteria or is too vague to plan, stop and as
 
 ---
 
-## Step 1b: Check for a local input file
+## Step 1b: Read the required input file
 
-Look for `docs/inputs/<issue-number>-*.md`. If exactly one matches, parse it for:
+Look for `docs/inputs/<issue-number>-*.md`. **This file is required** — it holds the design links, brainstorming, and constraints the GitHub issue alone doesn't capture.
 
-- **Design / Reference Links** — treat as authoritative for UI/UX shape.
-- **Brainstorming** — treat as hints for technical approach.
-- **Constraints & Non-goals** — treat as hard constraints (deadlines, compat) unless the issue contradicts them.
+- If **none** matches: stop and tell the user:
+  > No input file found at `docs/inputs/<issue-number>-*.md`. Create one using [docs/inputs/TEMPLATE.md](docs/inputs/TEMPLATE.md), then re-run `/plan-issue <issue-number>`.
+- If **multiple** match: ask the user which to use via `AskUserQuestion`.
+- If **exactly one** matches: parse it for:
+  - **Design / Reference Links** — authoritative for UI/UX shape.
+  - **Brainstorming** — hints for technical approach.
+  - **Constraints & Non-goals** — hard constraints (deadlines, compat) unless the issue contradicts them.
 
-If multiple match, ask the user which to use. If none, proceed with issue context only — the input file is optional.
+Validate the file has non-empty **Issue**, **Design / Reference Links**, and **Constraints & Non-goals** sections. If any required section is empty, stop and ask the user to fill it in before re-running. (Brainstorming may be empty.)
 
 **Conflict order (highest wins)** when the issue, input file, and repo docs disagree:
 1. Issue acceptance criteria + decisions in issue comments
