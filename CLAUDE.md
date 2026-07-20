@@ -54,11 +54,22 @@ with GitHub Actions CI and Claude skills.
 > `none` (API only). Driven by `ClientFramework` symbol → computed `UseReact` / `UseApiOnly`,
 > applied via `#if (UseApiOnly)` regions in `.cs` and `<!--#if-->` in `.csproj`.
 
-> **Observability:** **OpenTelemetry** (traces + metrics) wired in `Program.cs` —
-> ASP.NET Core / HttpClient / runtime instrumentation, exported over **OTLP**. The exporter reads
-> the standard `OTEL_EXPORTER_OTLP_*` env vars (endpoint default `http://localhost:4317`); point it
-> at a collector per environment. Logs use the default `ILogger`; `LoggingBehavior`
-> (`Sample.Application/Messaging`) logs every CQRS request + elapsed ms. **Health checks** split:
+> **Observability:** **OpenTelemetry** (traces + metrics + logs) wired in `Program.cs` — ASP.NET
+> Core / HttpClient / runtime / EF Core / Npgsql instrumentation, all three signals exported over
+> **OTLP** under one shared resource so a backend can stitch a trace to its own logs. The exporter
+> reads the standard `OTEL_EXPORTER_OTLP_*` env vars (endpoint default `http://localhost:4317`);
+> point it at a collector per environment. Logs also flow through the standard `ILogger` pipeline
+> (JSON console in non-Development) with `TraceId`/`SpanId` stamped via `ActivityTrackingOptions`,
+> plus an OTLP log exporter with `IncludeFormattedMessage`/`IncludeScopes` so exported records
+> carry the rendered message and the trace/span id. `LoggingBehavior` (`Sample.Application/
+> Messaging`) logs every CQRS request + elapsed ms. **Local stack:** `docker-compose.yml` runs
+> Grafana's all-in-one `otel-lgtm` image (Loki + Grafana + Tempo + Mimir + OTel Collector) —
+> Grafana UI at `http://localhost:3000` (`admin`/`admin`), OTLP receivers on 4317 (gRPC) / 4318
+> (HTTP). Dashboards live in `observability/dashboards/*.json`, auto-provisioned via
+> `observability/provisioning/dashboards/dashboards.yaml` (repo is source of truth,
+> `allowUiUpdates: false`) — ships with `Sample.Api — Golden Signals` (RPS/error rate/p95 latency
+> by route, active requests, GC pauses, working set, DB pool + p95 query time + query rate).
+> **Not for production** (single-node, no auth on OTLP ingest). **Health checks** split:
 > `/health/live` (liveness, no deps), `/health/ready` (readiness — DB via `AddDbContextCheck`,
 > tag `ready`), `/health` kept as a liveness alias. Probes: liveness→`/health/live`,
 > readiness→`/health/ready`.
